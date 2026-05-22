@@ -1,151 +1,78 @@
+import random
 import streamlit as st
-import pandas as pd
-import math
-from pathlib import Path
 
-# Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title='점심 메뉴 추천기',
+    page_icon=':fork_and_knife:',
+    layout='centered',
 )
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+st.title('오늘 점심은 뭘 먹을까?')
+st.write('버튼을 누르면 오늘 점심에 무엇을 먹을지 랜덤으로 추천해 드립니다.')
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+menu_categories = {
+    '한식': [
+        '김치찌개', '된장찌개', '순두부찌개', '부대찌개', '갈비찜', '제육볶음',
+        '불고기', '닭갈비', '비빔밥', '볶음밥', '오므라이스', '돈까스',
+        '김밥', '도시락', '떡국', '설렁탕', '삼계탕', '감자탕',
+    ],
+    '중식': [
+        '짜장면', '짬뽕', '볶음밥', '탕수육', '마파두부', '양장피', '마라탕',
+        '마라샹궈', '유산슬', '깐풍기',
+    ],
+    '일식/아시아': [
+        '초밥', '회덮밥', '연어덮밥', '우동', '냉우동', '카레라이스',
+        '라멘', '돈부리', '덮밥', '테판야끼', '토스트',
+    ],
+    '양식': [
+        '피자', '파스타', '리조또', '스테이크', '햄버거', '샌드위치',
+        '샐러드', '그릴치킨', '감바스', '에그베네딕트',
+    ],
+    '분식/간편식': [
+        '떡볶이', '쫄면', '순대', '김말이', '튀김', '핫도그', '토스트',
+        '컵밥', '참치김밥', '샌드위치',
+    ],
+    '국/탕': [
+        '순댓국', '곰탕', '설렁탕', '삼계탕', '감자탕', '우거지국',
+        '갈비탕', '해장국', '북엇국',
+    ],
+}
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
+selected_categories = st.multiselect(
+    '보고 싶은 카테고리를 선택하세요',
+    list(menu_categories.keys()),
+    default=list(menu_categories.keys()),
 )
 
-''
-''
+st.subheader('선택된 카테고리 메뉴 목록')
+if selected_categories:
+    for category in selected_categories:
+        with st.expander(category, expanded=False):
+            st.write(', '.join(menu_categories[category]))
+else:
+    st.warning('최소 하나의 카테고리를 선택해 주세요.')
 
+st.subheader('원하는 메뉴를 직접 추가해 보세요')
+custom_text = st.text_area(
+    '추가하고 싶은 메뉴가 있다면 쉼표(,)로 구분하여 입력하세요.',
+    value='',
+    height=120,
+)
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+menu_candidates = []
+for category in selected_categories:
+    menu_candidates.extend(menu_categories[category])
 
-st.header(f'GDP in {to_year}', divider='gray')
+custom_menus = [item.strip() for item in custom_text.split(',') if item.strip()]
+menu_candidates.extend(custom_menus)
+menu_candidates = list(dict.fromkeys(menu_candidates))
 
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+if not menu_candidates:
+    st.warning('추천할 메뉴를 최소 하나 이상 선택하거나 추가해 주세요.')
+else:
+    if st.button('랜덤 점심메뉴 추천'):
+        recommendation = random.choice(menu_candidates)
+        st.success(f'오늘 점심 추천: **{recommendation}**')
+        st.balloons()
+    else:
+        st.info('버튼을 눌러 점심 메뉴를 추천받아 보세요!')
